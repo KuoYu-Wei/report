@@ -1,0 +1,242 @@
+---
+title: "統計諮詢報告"
+subtitle: "變數選擇實際操作"
+date: today
+author: Yu-Wei Kuo
+format:
+ pdf:
+    include-in-header:
+      - text: |
+         \usepackage{setspace,relsize}
+         \usepackage{geometry}
+         \geometry{verbose,tmargin=2.5cm,bmargin=2.5cm,lmargin=2.5cm,rmargin=2.5cm}
+#mainfont: "Microsoft JhengHei UI"
+#mainfont: "Microsoft JhengHei"
+mainfont: "Microsoft JhengHei Bold"
+toc: true
+lang: zh-Tw
+documentclass: article
+pdf-engine: xelatex
+execute:
+  tidy: true
+  echo: true
+  warning: false
+  message: false
+bibliography: reference.bib
+csl: apa.csl
+---
+
+## 一、讀取資料
+
+```{python}
+# Numerical libraries
+import numpy as np   
+
+# Import Linear Regression machine learning library
+from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import Ridge
+from sklearn.linear_model import Lasso
+
+from sklearn.metrics import r2_score
+
+# to handle data in form of rows and columns 
+import pandas as pd    
+
+# importing ploting libraries
+import matplotlib.pyplot as plt   
+
+#importing seaborn for statistical plots
+import seaborn as sns
+
+mpg_df = pd.read_csv("C:/Users/ASUS/Downloads/auto-mpg.csv")
+pd.set_option('display.max_columns', None)  # Show all columns
+pd.set_option('display.expand_frame_repr', False)  # Prevent wrapping into multiple lines
+mpg_df.head() #sample 5 records
+```
+
+```{python}
+mpg_df.info() #information about the data
+```
+
+
+
+
+## 二、資料處理
+
+```{python}
+mpg_df[mpg_df['horsepower'].str.isnumeric()==False]
+mpg_df=mpg_df.replace('?',np.nan)
+mpg_df=mpg_df.drop('car name',axis=1)
+mpg_df = mpg_df.apply(pd.to_numeric, errors='coerce')
+mpg_df=mpg_df.apply(lambda x: x.fillna(x.median()),axis=0)
+```
+
+```{python}
+mpg_df.info()
+```
+
+```{python}
+mpg_df.head() #sample 5 records
+```
+
+
+
+
+## 三、設定模型變數
+
+```{python}
+#'mpg' is dependent variable so drop it . Copying rest of the columns to X
+X = mpg_df.drop('mpg', axis=1)
+
+#Copying the 'mpg' column alone into the y dataframe. This is the dependent variable
+y = mpg_df[['mpg']]
+```
+
+
+
+
+## 四、假設變數獨立下進行模型訓練
+
+```{python}
+from sklearn import preprocessing
+
+# scale all the columns of the mpg_df. This will produce a numpy array
+X_scaled = preprocessing.scale(X)
+X_scaled = pd.DataFrame(X_scaled, columns=X.columns)  # ideally the training and test should be 
+
+y_scaled = preprocessing.scale(y)
+y_scaled = pd.DataFrame(y_scaled, columns=y.columns)  # ideally the training and test should be 
+from sklearn.model_selection import train_test_split
+
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y_scaled, test_size=0.30, random_state=1)
+```
+
+1. 線性模型
+
+```{python}
+regression_model = LinearRegression()
+regression_model.fit(X_train, y_train)
+
+for i, col in enumerate(X_train.columns):
+    print(f"Regression model coefficient for {col} is {regression_model.coef_[0][i]}")
+intercept = regression_model.intercept_[0]
+
+print("Regression model intercept is:", regression_model.intercept_)
+```
+
+2. Ridge模型
+```{python}
+ridge = Ridge(alpha=0.3)  # coefficients are prevented to become too big by this alpha value
+ridge.fit(X_train, y_train)
+
+# Iterate through the columns and print out the corresponding coefficient
+for i, col in enumerate(X_train.columns):   
+    print(f"Ridge model coefficient for {col} is {ridge.coef_[i]}")
+print("Ridge model intercept is:", ridge.intercept_)
+```
+
+3. Lasso模型
+
+```{python}
+lasso = Lasso(alpha=0.1)
+lasso.fit(X_train,y_train)
+for i,col in enumerate(X_train):
+    print (f"Lasso model coefficients for {col} is {lasso.coef_[i]}:")
+print("Lasso model intercept is:", lasso.intercept_)
+```
+
+4. ElasticNet模型
+
+```{python}
+from sklearn.linear_model import ElasticNet
+elastic_net = ElasticNet(alpha=0.3, l1_ratio=0.5) 
+elastic_net.fit(X_train, y_train)
+for i, col in enumerate(X_train.columns):   
+    print(f"ElasticNet model coefficient for {col} is {elastic_net.coef_[i]}")
+print("ElasticNet model intercept is:", elastic_net.intercept_)
+```
+
+5. 比較模型的r-square
+
+```{python}
+print("Linear Regression R-squared (Train):", regression_model.score(X_train, y_train))
+print("Linear Regression R-squared (Test):", regression_model.score(X_test, y_test))
+
+print("Ridge Regression R-squared (Train):", ridge.score(X_train, y_train))
+print("Ridge Regression R-squared (Test):", ridge.score(X_test, y_test))
+
+print("Lasso Regression R-squared (Train):", lasso.score(X_train, y_train))
+print("Lasso Regression R-squared (Test):", lasso.score(X_test, y_test))
+
+print("ElasticNet R-squared (Train):", elastic_net.score(X_train, y_train))
+print("ElasticNet R-squared (Test):", elastic_net.score(X_test, y_test))
+
+```
+
+
+
+
+## 五、假設變數非獨立下進行模型訓練
+
+```{python}
+from sklearn.preprocessing import PolynomialFeatures
+poly = PolynomialFeatures(degree = 2, interaction_only=True)
+X_poly = poly.fit_transform(X_scaled)
+X_train, X_test, y_train, y_test = train_test_split(X_poly, y, test_size=0.30, random_state=1)
+X_train.shape
+```
+
+1. 線性模型
+
+```{python}
+regression_model.fit(X_train, y_train)
+print("Regression model:", (regression_model.coef_))
+```
+
+2. Ridge模型
+
+```{python}
+ridge = Ridge(alpha=0.3)
+ridge.fit(X_train,y_train)
+print ("Ridge model:", (ridge.coef_))
+```
+
+3. Lasso模型
+
+```{python}
+lasso = Lasso(alpha=0.1)
+lasso.fit(X_train,y_train)
+print ("Lasso model:", (lasso.coef_))
+```
+
+4. ElasicNet模型
+
+```{python}
+elastic_net = ElasticNet(alpha=0.3, l1_ratio=0.5)
+elastic_net.fit(X_train, y_train)
+print("ElasticNet model coefficients:", (elastic_net.coef_))
+
+```
+
+5. 比較模型
+
+```{python}
+print("Linear Regression R-squared (Train):", regression_model.score(X_train, y_train))
+print("Linear Regression R-squared (Test):", regression_model.score(X_test, y_test))
+
+print("Ridge Regression R-squared (Train):", ridge.score(X_train, y_train))
+print("Ridge Regression R-squared (Test):", ridge.score(X_test, y_test))
+
+print("Lasso Regression R-squared (Train):", lasso.score(X_train, y_train))
+print("Lasso Regression R-squared (Test):", lasso.score(X_test, y_test))
+
+print("ElasticNet R-squared (Train):", elastic_net.score(X_train, y_train))
+print("ElasticNet R-squared (Test):", elastic_net.score(X_test, y_test))
+
+```
+
+Kaggle 提供的數據集 [@kaggle2025a; @kaggle2025b]。
+
+## 六、參考文獻
+::: {#refs}
+:::
